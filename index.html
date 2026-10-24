@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f1419">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon.svg">
+<title>Vault</title>
+<style>
+  :root {
+    --bg: #0f1419; --paper: #1b222c; --ink: #f2f0ea; --muted: #9aa3ad;
+    --line: #2a3340; --accent: #e8c15a; --danger: #e0655a;
+  }
+  body.light {
+    --bg: #f4f1ea; --paper: #fffdf8; --ink: #22271f; --muted: #6a7263;
+    --line: #e2dccb; --accent: #8a6a1d; --danger: #b03a2e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.6;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { width: min(94vw, 430px); margin: 0 auto; padding: 20px 0 64px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  header h1 { font-family: Georgia, serif; font-size: 28px; }
+  .hbtn {
+    font-size: 20px; background: var(--paper); border: 1px solid var(--line);
+    border-radius: 12px; padding: 8px 12px; cursor: pointer; color: var(--ink);
+  }
+  .panel {
+    background: var(--paper); border: 1px solid var(--line); border-radius: 18px;
+    padding: 18px 20px; margin: 16px 0; font-size: 15px;
+  }
+  .panel h2 { font-size: 17px; margin-bottom: 10px; }
+  .panel label { display: block; font-size: 14px; color: var(--muted); margin: 10px 0 2px; }
+  .panel input {
+    width: 100%; padding: 11px 13px; font-size: 16px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink); outline: none;
+  }
+  .panel input:focus { border-color: var(--accent); }
+  .btn {
+    background: var(--accent); color: #14100a; border: none; border-radius: 999px;
+    padding: 11px 22px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 14px;
+  }
+  .btn.secondary { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+  .btn.danger { background: var(--paper); color: var(--danger); border: 1px solid var(--danger); }
+  .btn:disabled { opacity: 0.5; }
+  .note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .err { color: var(--danger); font-size: 14px; margin-top: 10px; display: none; }
+  .warn { color: var(--accent); font-size: 13px; margin-top: 6px; display: none; }
+  #viewport { overflow: hidden; touch-action: pan-y; margin-top: 20px; }
+  #track { display: flex; gap: 14px; will-change: transform; }
+  .slide { min-width: 86%; }
+  .card { perspective: 1200px; aspect-ratio: 1.586; }
+  .card-inner {
+    position: relative; width: 100%; height: 100%;
+    transform-style: preserve-3d; transition: transform 0.55s cubic-bezier(0.4, 0.1, 0.2, 1);
+  }
+  .card-inner.flipped { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0; border-radius: 20px; padding: 20px 22px;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    display: flex; flex-direction: column; justify-content: space-between;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35); color: #fff; overflow: hidden;
+  }
+  .face.back { transform: rotateY(180deg); }
+  .grad-visa { background: linear-gradient(135deg, #1a2f6b, #3b5bbf 55%, #101c3f); }
+  .grad-mc { background: linear-gradient(135deg, #7a1f1f, #c2410c 55%, #7c2d12); }
+  .grad-rupay { background: linear-gradient(135deg, #0f5132, #14919b 55%, #0b3d2e); }
+  .grad-amex { background: linear-gradient(135deg, #1f2937, #4b5563 55%, #111827); }
+  .grad-other { background: linear-gradient(135deg, #4c1d95, #7c3aed 55%, #2e1065); }
+  .card .top, .card .bottom { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .card .bank { font-weight: 700; font-size: 16px; letter-spacing: 0.04em; }
+  .card .network { font-weight: 800; font-size: 14px; letter-spacing: 0.12em; opacity: 0.9; }
+  .card .chip {
+    width: 42px; height: 32px; border-radius: 7px;
+    background: linear-gradient(135deg, #f5d67a, #c9a227);
+  }
+  .card .number { font-size: 21px; letter-spacing: 0.06em; font-weight: 600; word-spacing: 4px; }
+  .card .holder { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.9; }
+  .card .exp { font-size: 14px; letter-spacing: 0.08em; }
+  .card .strip { background: #111; height: 42px; margin: 0 -22px; }
+  .card .sigrow { display: flex; justify-content: space-between; font-size: 15px; }
+  .card .back small { opacity: 0.7; font-size: 12px; }
+  .dots { display: flex; gap: 8px; justify-content: center; margin: 16px 0 4px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); border: none; padding: 0; cursor: pointer; }
+  .dot.active { background: var(--accent); width: 22px; border-radius: 99px; }
+  .navrow { display: flex; justify-content: center; gap: 12px; margin-top: 6px; }
+  .navbtn {
+    background: var(--paper); border: 1px solid var(--line); color: var(--ink);
+    border-radius: 50%; width: 42px; height: 42px; font-size: 20px; cursor: pointer;
+  }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .actions .btn { margin-top: 0; }
+  .empty { text-align: center; color: var(--muted); padding: 48px 16px; font-size: 15px; }
+  footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 32px; padding: 0 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔐 Vault</h1>
+    <span>
+      <button type="button" class="hbtn" id="themeBtn" aria-label="Toggle theme">🌙</button>
+      <button type="button" class="hbtn" id="securityBtn" aria-label="Security">🔒 Security</button>
+    </span>
+  </header>
+
+  <div class="panel" id="securityPanel" style="display:none"></div>
+
+  <div id="viewport"><div id="track"></div></div>
+  <div class="dots" id="dots"></div>
+  <div class="navrow">
+    <button type="button" class="navbtn" id="prevBtn" aria-label="Previous card">‹</button>
+    <button type="button" class="navbtn" id="nextBtn" aria-label="Next card">›</button>
+  </div>
+
+  <div class="actions" id="actions"></div>
+
+  <div class="panel" id="formPanel" style="display:none">
+    <h2 id="formTitle">Add card</h2>
+    <label>Bank / nickname</label>
+    <input type="text" id="fBank" placeholder="e.g. HDFC Infinia" autocomplete="off">
+    <label>Holder name</label>
+    <input type="text" id="fHolder" placeholder="As printed on the card" autocomplete="off">
+    <label>Card number</label>
+    <input type="text" id="fNumber" inputmode="numeric" placeholder="16 digits" autocomplete="off">
+    <p class="warn" id="luhnWarn">This number does not pass the card check — double-check it. You can still save.</p>
+    <label>Expiry (MM/YY)</label>
+    <input type="text" id="fExpiry" inputmode="numeric" placeholder="MM/YY" autocomplete="off">
+    <label>CVV</label>
+    <input type="text" id="fCvv" inputmode="numeric" placeholder="3 digits" autocomplete="off">
+    <label>PIN (optional)</label>
+    <input type="text" id="fPin" inputmode="numeric" placeholder="4 digits" autocomplete="off">
+    <p class="err" id="formErr"></p>
+    <button type="button" class="btn" id="saveBtn">Save card</button>
+    <button type="button" class="btn secondary" id="cancelBtn">Cancel</button>
+  </div>
+
+  <footer>Tap a card to flip it. Swipe to glide between cards.<br>Real data only appears after the master password.</footer>
+</div>
+
+<script>
+var LS_VAULT = "vaultData";
+var LS_DECOYS = "vaultDecoys";
+var LS_SETTINGS = "vaultSettings";
+var GAP = 14;
+
+/* ---------- State ---------- */
+var mode = "decoy";
+var cryptoKey = null;
+var vaultBlob = null;
+var realEntries = [];
+var decoys = [];
+var active = 0;
+var flippedIndex = -1;
+var editingId = null;
+var idleTimer = null;
+var settings = { theme: "dark" };
+try {
+  var ss = JSON.parse(localStorage.getItem(LS_SETTINGS) || "null");
+  if (ss && ss.theme) settings.theme = ss.theme;
+} catch (e) {}
+
+/* CRYPTO-START */
+function bufToB64(buf) {
+  var bytes = new Uint8Array(buf);
+  var s = "";
+  for (var i = 0; i < bytes.length; i += 0x8000) {
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(s);
+}
+function b64ToBuf(s) {
+  var bin = atob(s);
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+function deriveKey(password, salt) {
+  var enc = new TextEncoder();
+  return crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]).then(function (km) {
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: salt, iterations: 250000, hash: "SHA-256" },
+      km, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  });
+}
+function encryptData(key, text) {
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  return crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, new TextEncoder().encode(text)).then(function (ct) {
+    return { iv: bufToB64(iv), data: bufToB64(ct) };
+  });
+}
+function decryptData(key, ivB64, dataB64) {
+  return crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ToBuf(ivB64) }, key, b64ToBuf(dataB64)).then(function (pt) {
+    return new TextDecoder().decode(pt);
+  });
+}
+/* CRYPTO-END */
+
+/* DECOY-START */
+function randDigits(n) {
+  var s = "";
+  for (var i = 0; i < n; i++) s += String(Math.floor(Math.random() * 10));
+  return s;
+}
+function luhnCheckDigit(payload) {
+  var sum = 0;
+  for (var i = 0; i < payload.length; i++) {
+    var d = parseInt(payload[payload.length - 1 - i], 10);
+    if ((i + 1) % 2 === 1) { d *= 2; if (d > 9) d -= 9; }
+    sum += d;
+  }
+  return String((10 - (sum % 10)) % 10);
+}
+function luhnValid(num) {
+  if (!/^\d+$/.test(num)) return false;
+  return luhnCheckDigit(num.slice(0, -1)) === num.slice(-1);
+}
+function decoyNumber(real) {
+  var len = real.length;
+  var first = real[0];
+  var decoy;
+  do {
+    var payload = first + randDigits(len - 2);
+    decoy = payload + luhnCheckDigit(payload);
+  } while (decoy === real);
+  return decoy;
+}
+function decoyExpiry() {
+  var now = new Date();
+  var yy = now.getFullYear() % 100;
+  var mm = String(1 + Math.floor(Math.random() * 12)).padStart(2, "0");
+  var y = String(yy + 1 + Math.floor(Math.random() * 5)).padStart(2, "0");
+  return mm + "/" + y;
+}
+function generateDecoy(card) {
+  var d = {
+    id: card.id,
+    bank: card.bank,
+    holder: card.holder,
+    number: decoyNumber(card.number),
+    expiry: decoyExpiry(),
+    cvv: randDigits(card.cvv.length),
+    pin: card.pin ? randDigits(card.pin.length) : ""
+  };
+  return d;
+}
+/* DECOY-END */
+
+/* ---------- Storage ---------- */
+function loadStores() {
+  try { vaultBlob = JSON.parse(localStorage.getItem(LS_VAULT) || "null"); } catch (e) { vaultBlob = null; }
+  try { decoys = JSON.parse(localStorage.getItem(LS_DECOYS) || "[]"); } catch (e) { decoys = []; }
+}
+function saveDecoys() { localStorage.setItem(LS_DECOYS, JSON.stringify(decoys)); }
+function persistReal() {
+  return encryptData(cryptoKey, JSON.stringify(realEntries)).then(function (enc) {
+    vaultBlob = { salt: vaultBlob.salt, iv: enc.iv, data: enc.data };
+    localStorage.setItem(LS_VAULT, JSON.stringify(vaultBlob));
+  });
+}
+
+/* ---------- Theme ---------- */
+function applyTheme() {
+  document.body.classList.toggle("light", settings.theme === "light");
+  document.getElementById("themeBtn").textContent = settings.theme === "light" ? "☀️" : "🌙";
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", settings.theme === "light" ? "#f4f1ea" : "#0f1419");
+  localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+}
+document.getElementById("themeBtn").addEventListener("click", function () {
+  settings.theme = settings.theme === "light" ? "dark" : "light";
+  applyTheme();
+});
+
+/* ---------- Cards ---------- */
+function networkOf(num) {
+  var c = num[0];
+  if (c === "4") return { name: "VISA", grad: "grad-visa" };
+  if (c === "5") return { name: "MASTERCARD", grad: "grad-mc" };
+  if (c === "6") return { name: "RUPAY", grad: "grad-rupay" };
+  if (c === "3") return { name: "AMEX", grad: "grad-amex" };
+  return { name: "CARD", grad: "grad-other" };
+}
+function groupNum(n) { return n.replace(/(\d{4})(?=\d)/g, "$1 "); }
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function cardHTML(entry, idx) {
+  var net = networkOf(entry.number);
+  var pinRow = entry.pin ? "<div> PIN <b>" + esc(entry.pin) + "</b></div>" : "";
+  return '<div class="slide" data-idx="' + idx + '"><div class="card"><div class="card-inner' + (flippedIndex === idx ? " flipped" : "") + '">' +
+    '<div class="face front ' + net.grad + '">' +
+    '<div class="top"><span class="bank">' + esc(entry.bank) + '</span><span class="network">' + net.name + "</span></div>" +
+    '<div class="chip"></div>' +
+    '<div class="number">' + esc(groupNum(entry.number)) + "</div>" +
+    '<div class="bottom"><span class="holder">' + esc(entry.holder) + '</span><span class="exp">' + esc(entry.expiry) + "</span></div>" +
+    "</div>" +
+    '<div class="face back ' + net.grad + '">' +
+    '<div class="strip"></div>' +
+    '<div class="sigrow"><span><small>CVV</small><br><b>' + esc(entry.cvv) + "</b></span>" + pinRow + "</div>" +
+    '<div><small>' + esc(entry.bank) + "</small></div>" +
+    "</div></div></div></div>";
+}
+function currentEntries() { return mode === "real" ? realEntries : decoys; }
+function renderCarousel() {
+  var entries = currentEntries();
+  var track = document.getElementById("track");
+  var dots = document.getElementById("dots");
+  if (!entries.length) {
+    track.innerHTML = '<div class="slide"><div class="empty">No cards yet.<br>Unlock with the Security button, then add your first card.</div></div>';
+    dots.innerHTML = "";
+  } else {
+    if (active >= entries.length) active = entries.length - 1;
+    track.innerHTML = entries.map(cardHTML).join("");
+    dots.innerHTML = entries.map(function (_, i) {
+      return '<button type="button" class="dot' + (i === active ? " active" : "") + '" data-dot="' + i + '" aria-label="Card ' + (i + 1) + '"></button>';
+    }).join("");
+  }
+  var actions = document.getElementById("actions");
+  if (mode === "real" && entries.length) {
+    actions.innerHTML = '<button type="button" class="btn" id="copyBtn">Copy number</button>' +
+      '<button type="button" class="btn secondary" id="editBtn">Edit this card</button>' +
+      '<button type="button" class="btn danger" id="delBtn">Delete this card</button>';
+    document.getElementById("copyBtn").addEventListener("click", copyNumber);
+    document.getElementById("editBtn").addEventListener("click", function () { openForm(entries[active]); });
+    document.getElementById("delBtn").addEventListener("click", deleteCard);
+  } else {
+    actions.innerHTML = "";
+  }
+  var addBtn = document.getElementById("addBtn");
+  if (!addBtn) {
+    addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn";
+    addBtn.id = "addBtn";
+    addBtn.textContent = "＋ Add card";
+    addBtn.addEventListener("click", function () {
+      if (mode === "real") { openForm(null); }
+      else { openSecurity(); }
+    });
+    actions.appendChild(addBtn);
+  }
+  goTo(active, false);
+  updateSecurityBtn();
+}
+function slideW() {
+  var s = document.querySelector(".slide");
+  return s ? s.offsetWidth + GAP : 0;
+}
+function goTo(i, animate) {
+  var entries = currentEntries();
+  if (!entries.length) return;
+  if (i < 0) i = 0;
+  if (i >= entries.length) i = entries.length - 1;
+  active = i;
+  var track = document.getElementById("track");
+  track.style.transition = animate ? "transform 0.45s cubic-bezier(0.22, 0.9, 0.3, 1.1)" : "none";
+  track.style.transform = "translateX(" + (-(i * slideW())) + "px)";
+  document.querySelectorAll(".dot").forEach(function (d, di) {
+    d.classList.toggle("active", di === i);
+  });
+}
+document.getElementById("dots").addEventListener("click", function (e) {
+  var d = e.target.getAttribute && e.target.getAttribute("data-dot");
+  if (d !== null) { flippedIndex = -1; goTo(parseInt(d, 10), true); }
+});
+document.getElementById("prevBtn").addEventListener("click", function () { flippedIndex = -1; goTo(active - 1, true); });
+document.getElementById("nextBtn").addEventListener("click", function () { flippedIndex = -1; goTo(active + 1, true); });
+window.addEventListener("resize", function () { goTo(active, false); });
+
+/* Drag to glide, tap to flip */
+(function () {
+  var vp = document.getElementById("viewport");
+  var track = document.getElementById("track");
+  var dragging = false, startX = 0, baseX = 0, startT = 0, moved = 0;
+  vp.addEventListener("pointerdown", function (e) {
+    dragging = true; moved = 0; startX = e.clientX; startT = Date.now();
+    baseX = -(active * slideW());
+    track.style.transition = "none";
+    try { vp.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  vp.addEventListener("pointermove", function (e) {
+    if (!dragging) return;
+    moved = e.clientX - startX;
+    track.style.transform = "translateX(" + (baseX + moved) + "px)";
+  });
+  vp.addEventListener("pointerup", function (e) {
+    if (!dragging) return;
+    dragging = false;
+    var dt = Date.now() - startT;
+    if (Math.abs(moved) < 10 && dt < 400) {
+      var slide = e.target.closest ? e.target.closest(".slide") : null;
+      if (slide) {
+        var idx = parseInt(slide.getAttribute("data-idx"), 10);
+        if (idx !== active) { flippedIndex = -1; goTo(idx, true); }
+        else {
+          flippedIndex = flippedIndex === idx ? -1 : idx;
+          var inner = slide.querySelector(".card-inner");
+          if (inner) inner.classList.toggle("flipped", flippedIndex === idx);
+        }
+      }
+      return;
+    }
+    if (moved < -50) { flippedIndex = -1; goTo(active + 1, true); }
+    else if (moved > 50) { flippedIndex = -1; goTo(active - 1, true); }
+    else { goTo(active, true); }
+  });
+})();
+
+function copyNumber() {
+  var entries = currentEntries();
+  if (!entries.length) return;
+  var num = entries[active].number;
+  navigator.clipboard.writeText(num).then(function () {
+    var btn = document.getElementById("copyBtn");
+    var old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(function () { btn.textContent = old; }, 1500);
+    setTimeout(function () { navigator.clipboard.writeText("").catch(function () {}); }, 30000);
+  });
+}
+
+/* ---------- Security panel ---------- */
+function updateSecurityBtn() {
+  var b = document.getElementById("securityBtn");
+  b.textContent = mode === "real" ? "🔓 Lock" : "🔒 Security";
+}
+function openSecurity() {
+  var p = document.getElementById("securityPanel");
+  renderSecurity();
+  p.style.display = "block";
+}
+function closeSecurity() {
+  document.getElementById("securityPanel").style.display = "none";
+}
+document.getElementById("securityBtn").addEventListener("click", function () {
+  var p = document.getElementById("securityPanel");
+  if (p.style.display === "none") { openSecurity(); }
+  else { closeSecurity(); }
+});
+function renderSecurity() {
+  var p = document.getElementById("securityPanel");
+  if (!vaultBlob) {
+    p.innerHTML = "<h2>Create master password</h2>" +
+      '<label>Master password</label><input type="password" id="pw1" autocomplete="new-password">' +
+      '<label>Confirm master password</label><input type="password" id="pw2" autocomplete="new-password">' +
+      '<p class="err" id="pwErr"></p>' +
+      '<button type="button" class="btn" id="setupBtn">Create vault</button>' +
+      '<p class="note">There is no forgot-password. If you forget this password, the real data cannot be recovered. The decoy vault keeps working either way.</p>';
+    document.getElementById("setupBtn").addEventListener("click", setupVault);
+    return;
+  }
+  var html = "<h2>Security</h2>";
+  if (mode === "real") {
+    html += '<button type="button" class="btn secondary" id="lockBtn">Lock vault (show decoys)</button>' +
+      '<p class="note">You are seeing real card numbers right now.</p>' +
+      '<button type="button" class="btn secondary" id="exportBtn">Export encrypted backup</button>' +
+      '<button type="button" class="btn secondary" id="importBtn">Import backup</button>' +
+      '<input type="file" id="importFile" accept=".json,application/json" style="display:none">' +
+      '<div id="importArea"></div>';
+    p.innerHTML = html;
+    document.getElementById("lockBtn").addEventListener("click", lock);
+    document.getElementById("exportBtn").addEventListener("click", exportBackup);
+    document.getElementById("importBtn").addEventListener("click", function () {
+      document.getElementById("importFile").click();
+    });
+    document.getElementById("importFile").addEventListener("change", importFileChosen);
+  } else {
+    html += '<label>Master password</label><input type="password" id="pwUnlock" autocomplete="current-password">' +
+      '<p class="err" id="pwErr"></p>' +
+      '<button type="button" class="btn" id="unlockBtn">Unlock real vault</button>' +
+      '<p class="note">Wrong password? You stay on the decoy vault.</p>';
+    p.innerHTML = html;
+    document.getElementById("unlockBtn").addEventListener("click", unlock);
+    document.getElementById("pwUnlock").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") unlock();
+    });
+  }
+}
+function pwErr(msg) {
+  var el = document.getElementById("pwErr");
+  if (el) { el.textContent = msg; el.style.display = msg ? "block" : "none"; }
+}
+function setupVault() {
+  var p1 = document.getElementById("pw1").value;
+  var p2 = document.getElementById("pw2").value;
+  if (p1.length < 8) { pwErr("Use at least 8 characters — longer is better."); return; }
+  if (p1 !== p2) { pwErr("Passwords do not match."); return; }
+  var salt = crypto.getRandomValues(new Uint8Array(16));
+  var btn = document.getElementById("setupBtn");
+  btn.disabled = true; btn.textContent = "Creating…";
+  deriveKey(p1, salt).then(function (key) {
+    return encryptData(key, JSON.stringify([])).then(function (enc) {
+      vaultBlob = { salt: bufToB64(salt), iv: enc.iv, data: enc.data };
+      localStorage.setItem(LS_VAULT, JSON.stringify(vaultBlob));
+      cryptoKey = key;
+      realEntries = [];
+      mode = "real";
+      closeSecurity();
+      renderCarousel();
+      renderSecurity();
+      startIdle();
+    });
+  }).catch(function () {
+    btn.disabled = false; btn.textContent = "Create vault";
+    pwErr("Could not create the vault. Try again.");
+  });
+}
+function unlock() {
+  var pw = document.getElementById("pwUnlock").value;
+  if (!pw) return;
+  var btn = document.getElementById("unlockBtn");
+  btn.disabled = true; btn.textContent = "Unlocking…";
+  deriveKey(pw, b64ToBuf(vaultBlob.salt)).then(function (key) {
+    return decryptData(key, vaultBlob.iv, vaultBlob.data).then(function (pt) {
+      cryptoKey = key;
+      realEntries = JSON.parse(pt);
+      mode = "real";
+      closeSecurity();
+      renderCarousel();
+      startIdle();
+    });
+  }).catch(function () {
+    btn.disabled = false; btn.textContent = "Unlock real vault";
+    pwErr("Incorrect password. You are still on the decoy vault.");
+    setTimeout(function () { btn.disabled = true; setTimeout(function () { btn.disabled = false; }, 2000); }, 0);
+  });
+}
+function lock() {
+  mode = "decoy";
+  cryptoKey = null;
+  realEntries = [];
+  flippedIndex = -1;
+  clearTimeout(idleTimer);
+  renderCarousel();
+  renderSecurity();
+}
+function startIdle() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(lock, 5 * 60 * 1000);
+}
+document.addEventListener("pointerdown", function () { if (mode === "real") startIdle(); });
+document.addEventListener("keydown", function () { if (mode === "real") startIdle(); });
+document.addEventListener("visibilitychange", function () {
+  if (document.hidden && mode === "real") lock();
+});
+
+/* ---------- Backup ---------- */
+function download(filename, text) {
+  var blob = new Blob([text], { type: "application/json" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+}
+function exportBackup() {
+  download("vault-backup.json", JSON.stringify({ vault: vaultBlob, decoys: decoys }));
+}
+var pendingImport = null;
+function importFileChosen(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function () {
+    try {
+      var data = JSON.parse(String(reader.result || ""));
+      if (!data.vault || !data.vault.salt || !data.vault.iv || !data.vault.data || !Array.isArray(data.decoys)) {
+        throw new Error("bad");
+      }
+      pendingImport = data;
+      document.getElementById("importArea").innerHTML =
+        '<label>Password of this backup</label><input type="password" id="pwImport">' +
+        '<p class="err" id="importErr"></p>' +
+        '<button type="button" class="btn" id="doImportBtn">Import this backup</button>' +
+        '<p class="note">The backup is only applied if this password opens it. Your current vault is untouched otherwise.</p>';
+      document.getElementById("doImportBtn").addEventListener("click", doImport);
+    } catch (err) {
+      document.getElementById("importArea").innerHTML = '<p class="err" style="display:block">That file is not a Vault backup.</p>';
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+}
+function doImport() {
+  var pw = document.getElementById("pwImport").value;
+  if (!pw || !pendingImport) return;
+  var btn = document.getElementById("doImportBtn");
+  btn.disabled = true; btn.textContent = "Checking…";
+  deriveKey(pw, b64ToBuf(pendingImport.vault.salt)).then(function (key) {
+    return decryptData(key, pendingImport.vault.iv, pendingImport.vault.data).then(function () {
+      vaultBlob = pendingImport.vault;
+      decoys = pendingImport.decoys;
+      localStorage.setItem(LS_VAULT, JSON.stringify(vaultBlob));
+      saveDecoys();
+      pendingImport = null;
+      lock();
+      document.getElementById("importArea").innerHTML = '<p class="note">Backup imported. Unlock with its password to see the real cards.</p>';
+    });
+  }).catch(function () {
+    btn.disabled = false; btn.textContent = "Import this backup";
+    var el = document.getElementById("importErr");
+    el.textContent = "Wrong password for this backup. Nothing was changed.";
+    el.style.display = "block";
+  });
+}
+
+/* ---------- Add / edit / delete ---------- */
+function openForm(entry) {
+  editingId = entry ? entry.id : null;
+  document.getElementById("formTitle").textContent = entry ? "Edit card" : "Add card";
+  document.getElementById("fBank").value = entry ? entry.bank : "";
+  document.getElementById("fHolder").value = entry ? entry.holder : "";
+  document.getElementById("fNumber").value = entry ? groupNum(entry.number) : "";
+  document.getElementById("fExpiry").value = entry ? entry.expiry : "";
+  document.getElementById("fCvv").value = entry ? entry.cvv : "";
+  document.getElementById("fPin").value = entry ? entry.pin : "";
+  document.getElementById("formErr").style.display = "none";
+  document.getElementById("luhnWarn").style.display = "none";
+  document.getElementById("formPanel").style.display = "block";
+  document.getElementById("formPanel").scrollIntoView({ behavior: "smooth" });
+}
+document.getElementById("cancelBtn").addEventListener("click", function () {
+  document.getElementById("formPanel").style.display = "none";
+});
+function digitsOnly(v) { return v.replace(/\D/g, ""); }
+document.getElementById("fNumber").addEventListener("input", function (e) {
+  var d = digitsOnly(e.target.value).slice(0, 19);
+  e.target.value = groupNum(d);
+  document.getElementById("luhnWarn").style.display = (d.length >= 13 && !luhnValid(d)) ? "block" : "none";
+});
+document.getElementById("fExpiry").addEventListener("input", function (e) {
+  var d = digitsOnly(e.target.value).slice(0, 4);
+  e.target.value = d.length > 2 ? d.slice(0, 2) + "/" + d.slice(2) : d;
+});
+document.getElementById("fCvv").addEventListener("input", function (e) {
+  e.target.value = digitsOnly(e.target.value).slice(0, 4);
+});
+document.getElementById("fPin").addEventListener("input", function (e) {
+  e.target.value = digitsOnly(e.target.value).slice(0, 6);
+});
+document.getElementById("saveBtn").addEventListener("click", function () {
+  var bank = document.getElementById("fBank").value.trim();
+  var holder = document.getElementById("fHolder").value.trim();
+  var number = digitsOnly(document.getElementById("fNumber").value);
+  var expiry = document.getElementById("fExpiry").value.trim();
+  var cvv = digitsOnly(document.getElementById("fCvv").value);
+  var pin = digitsOnly(document.getElementById("fPin").value);
+  var err = document.getElementById("formErr");
+  function fail(msg) { err.textContent = msg; err.style.display = "block"; }
+  if (!bank) { fail("Add a bank or nickname."); return; }
+  if (!holder) { fail("Add the holder name."); return; }
+  if (number.length < 13 || number.length > 19) { fail("Card number must be 13 to 19 digits."); return; }
+  if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) { fail("Expiry must look like MM/YY."); return; }
+  if (cvv.length < 3 || cvv.length > 4) { fail("CVV must be 3 or 4 digits."); return; }
+  if (pin && (pin.length < 4 || pin.length > 6)) { fail("PIN must be 4 to 6 digits, or left empty."); return; }
+  err.style.display = "none";
+  var card = { id: editingId || (Date.now() + "" + Math.floor(Math.random() * 1000)), bank: bank, holder: holder, number: number, expiry: expiry, cvv: cvv, pin: pin };
+  var dec = generateDecoy(card);
+  if (editingId) {
+    realEntries = realEntries.map(function (c) { return c.id === editingId ? card : c; });
+    decoys = decoys.map(function (d) { return d.id === editingId ? dec : d; });
+  } else {
+    realEntries.push(card);
+    decoys.push(dec);
+  }
+  persistReal().then(function () {
+    saveDecoys();
+    document.getElementById("formPanel").style.display = "none";
+    if (!editingId) active = realEntries.length - 1;
+    flippedIndex = -1;
+    renderCarousel();
+    startIdle();
+  });
+});
+function deleteCard() {
+  var entries = currentEntries();
+  if (!entries.length) return;
+  var card = entries[active];
+  if (!confirm("Delete " + card.bank + " from the vault?")) return;
+  realEntries = realEntries.filter(function (c) { return c.id !== card.id; });
+  decoys = decoys.filter(function (d) { return d.id !== card.id; });
+  persistReal().then(function () {
+    saveDecoys();
+    if (active >= realEntries.length) active = realEntries.length - 1;
+    if (active < 0) active = 0;
+    flippedIndex = -1;
+    renderCarousel();
+    startIdle();
+  });
+}
+
+/* ---------- Start ---------- */
+applyTheme();
+loadStores();
+renderCarousel();
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("./sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
