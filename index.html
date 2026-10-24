@@ -320,7 +320,8 @@ function renderCarousel() {
   var track = document.getElementById("track");
   var dots = document.getElementById("dots");
   if (!entries.length) {
-    track.innerHTML = '<div class="slide"><div class="empty">No cards yet.<br>Unlock with the Security button, then add your first card.</div></div>';
+    var emptyMsg = mode === "real" ? "No cards yet.<br>Tap + Add card below." : "No cards yet.<br>Unlock with the Security button, then add your first card.";
+    track.innerHTML = '<div class="slide"><div class="empty">' + emptyMsg + "</div></div>";
     dots.innerHTML = "";
   } else {
     if (active >= entries.length) active = entries.length - 1;
